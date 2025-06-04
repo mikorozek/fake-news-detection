@@ -11,10 +11,10 @@ class Config:
     WEIGHT_DECAY = 0.01
 
     OUTPUT_DIR = "./results"
-    BEST_MODEL_PATH = "/home/mrozek/fake-news-detection/models"
+    BEST_MODEL_PATH = "/models"
     DATASET_PATHS = {
-        "train": "/home/mrozek/fake-news-detection/data/train_tokenized",
-        "validation": "/home/mrozek/fake-news-detection/data/val_tokenized",
+        "train": "/data/train_tokenized",
+        "validation": "/data/val_tokenized",
     }
 
     WANDB_PROJECT = "fake-news-classification"
