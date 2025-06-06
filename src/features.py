@@ -1,14 +1,13 @@
 from datasets import load_dataset, concatenate_datasets
 
+from src.config import Config
 
-def load_and_combine_datasets(split: str):
-    dataset1 = load_dataset("GonzaloA/fake_news")
-    dataset2 = load_dataset("ErfanMoosaviMonazzah/fake-news-detection-dataset-English")
 
-    required_columns = ["title", "text", "label"]
+def load_datasets_and_concat(split: str):
+    datasets = [load_dataset(dataset_name) for dataset_name in Config.DATASET_NAMES]
 
-    ds1 = dataset1[split].select_columns(required_columns)
-    ds2 = dataset2[split].select_columns(required_columns)
-    combined_dataset = concatenate_datasets([ds1, ds2])
+    dss = [dataset[split].select_columns(Config.REQUIRED_COLUMNS) for dataset in datasets]
 
-    return combined_dataset
+    combined_datasets = concatenate_datasets(dss)
+
+    return combined_datasets
