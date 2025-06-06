@@ -2,15 +2,16 @@ import os
 from datasets import load_from_disk
 from torch.nn.modules import padding
 from transformers import (
-    LongformerTokenizer,
-    LongformerForSequenceClassification,
+    AutoModelForSequenceClassification,
+    AutoTokenizer,
     Trainer,
     TrainingArguments,
 )
 import numpy as np
+from transformers.tokenization_utils import PreTrainedTokenizer
 import wandb
 from sklearn.metrics import accuracy_score, precision_recall_fscore_support
-from src.features import load_and_combine_datasets
+from src.features import load_datasets_and_concat
 from src.config import Config
 
 
@@ -26,22 +27,21 @@ def compute_metrics(eval_pred):
 
 
 def tokenize_and_save_dataset(split, tokenize_function):
-    dataset = load_and_combine_datasets(split)
+    dataset = load_datasets_and_concat(split)
     dataset = dataset.map(tokenize_function, batched=True)
     dataset.set_format(type="torch", columns=["input_ids", "attention_mask", "label"])
     dataset.save_to_disk(Config.DATASET_PATHS[split])
     return dataset
 
 
-def load_or_create_datasets(tokenizer: LongformerTokenizer):
+def load_or_create_datasets(tokenizer: PreTrainedTokenizer):
     def tokenize_function(examples):
         return tokenizer(
             examples["title"],
             examples["text"],
             truncation=True,
-            padding=True,
+            padding="max_length",
             max_length=Config.MAX_LENGTH,
-            return_tensors="pt",
         )
 
     if os.path.exists(Config.DATASET_PATHS["train"]):
@@ -82,11 +82,18 @@ def main():
             "weight_decay": Config.WEIGHT_DECAY,
         },
     )
+    print(f"Using model: {Config.MODEL_NAME}")
 
-    tokenizer = LongformerTokenizer.from_pretrained(Config.MODEL_NAME)
-    model = LongformerForSequenceClassification.from_pretrained(Config.MODEL_NAME, num_labels=2)
-
+    tokenizer = AutoTokenizer.from_pretrained(Config.MODEL_NAME)
     train_dataset, val_dataset = load_or_create_datasets(tokenizer)
+    num_labels = len(set(train_dataset["label"]))
+
+    model = AutoModelForSequenceClassification.from_pretrained(
+        Config.MODEL_NAME, num_labels=num_labels
+    )
+
+    print(f"Final train dataset size: {len(train_dataset)}")
+    print(f"Steps per epoch should be: {len(train_dataset) // Config.BATCH_SIZE}")
 
     training_args = TrainingArguments(
         output_dir=Config.OUTPUT_DIR,
