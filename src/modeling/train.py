@@ -1,72 +1,12 @@
-import os
-from datasets import load_from_disk
-from torch.nn.modules import padding
 from transformers import (
     AutoModelForSequenceClassification,
     AutoTokenizer,
     Trainer,
     TrainingArguments,
 )
-import numpy as np
-from transformers.tokenization_utils import PreTrainedTokenizer
 import wandb
-from sklearn.metrics import accuracy_score, precision_recall_fscore_support
-from src.features import load_datasets_and_concat
 from src.config import Config
-
-
-def compute_metrics(eval_pred):
-    predictions, labels = eval_pred
-    predictions = np.argmax(predictions, axis=1)
-
-    precision, recall, f1, _ = precision_recall_fscore_support(
-        labels, predictions, average="weighted"
-    )
-    accuracy = accuracy_score(labels, predictions)
-    return {"accuracy": accuracy, "f1": f1, "precision": precision, "recall": recall}
-
-
-def tokenize_and_save_dataset(split, tokenize_function):
-    dataset = load_datasets_and_concat(split)
-    dataset = dataset.map(tokenize_function, batched=True)
-    dataset.set_format(type="torch", columns=["input_ids", "attention_mask", "label"])
-    dataset.save_to_disk(Config.DATASET_PATHS[split])
-    return dataset
-
-
-def load_or_create_datasets(tokenizer: PreTrainedTokenizer):
-    def tokenize_function(examples):
-        return tokenizer(
-            examples["title"],
-            examples["text"],
-            truncation=True,
-            padding="max_length",
-            max_length=Config.MAX_LENGTH,
-        )
-
-    if os.path.exists(Config.DATASET_PATHS["train"]):
-        try:
-            train_dataset = load_from_disk(Config.DATASET_PATHS["train"])
-        except Exception as e:
-            print(f"Error while reading train dataset: {e}")
-            print(f"Beggining tokenization of train dataset")
-            train_dataset = tokenize_and_save_dataset("train", tokenize_function)
-    else:
-        print(f"Tokenized train dataset does not exist. Beggining tokenization")
-        train_dataset = tokenize_and_save_dataset("train", tokenize_function)
-
-    if os.path.exists(Config.DATASET_PATHS["validation"]):
-        try:
-            val_dataset = load_from_disk(Config.DATASET_PATHS["validation"])
-        except Exception as e:
-            print(f"Error while reading validation dataset: {e}")
-            print(f"Beggining tokenization of validation dataset")
-            val_dataset = tokenize_and_save_dataset("validation", tokenize_function)
-    else:
-        print(f"Tokenized validation dataset does not exist. Beggining tokenization")
-        val_dataset = tokenize_and_save_dataset("validation", tokenize_function)
-
-    return train_dataset, val_dataset
+from src.features import compute_metrics, load_or_create_dataset
 
 
 def main():
@@ -85,7 +25,8 @@ def main():
     print(f"Using model: {Config.MODEL_NAME}")
 
     tokenizer = AutoTokenizer.from_pretrained(Config.MODEL_NAME)
-    train_dataset, val_dataset = load_or_create_datasets(tokenizer)
+    train_dataset = load_or_create_dataset(tokenizer, "train")
+    val_dataset = load_or_create_dataset(tokenizer, "validation")
     num_labels = len(set(train_dataset["label"]))
 
     model = AutoModelForSequenceClassification.from_pretrained(
