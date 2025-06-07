@@ -20,6 +20,6 @@ class Config:
         "test": "data/test_tokenized",
     }
     MODEL_CHECKPOINT_PATH = "results/checkpoint-600"
-    REQUIRED_COLUMNS = ["title", "text", "label"]
+    REQUIRED_COLUMNS = ["sentence, target"]
 
     WANDB_PROJECT = "sentiment-classification"

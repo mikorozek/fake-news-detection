@@ -35,7 +35,7 @@ def collect_training_data():
                     train_losses.append(entry["loss"])
                 if "eval_loss" in entry:
                     data["eval_loss"] = entry["eval_loss"]
-                    data["eval_acc"] = entry["eval_acc"]
+                    data["eval_accuracy"] = entry["eval_accuracy"]
                     data["eval_precision"] = entry["eval_precision"]
                     data["eval_recall"] = entry["eval_recall"]
                     data["eval_f1"] = entry["eval_recall"]
@@ -64,14 +64,33 @@ def plot_metric(data, metric_name):
     plt.close()
 
 
+def plot_metrics_combined(data, metrics_to_plot, filename):
+    epochs = [checkpoint_data["epoch"] for checkpoint_data in data]
+    plt.figure(figsize=(10, 6))
+
+    for metric in metrics_to_plot:
+        metric_values = [checkpoint_data[metric] for checkpoint_data in data]
+        plt.plot(epochs, metric_values, linewidth=2, label=metric)
+
+    plt.xlabel("Epoch")
+    plt.grid(True, alpha=0.3)
+    plt.legend()
+    plt.tight_layout()
+    save_path = Path(Config.PLOTS_DIR) / filename
+    plt.savefig(str(save_path))
+    plt.close()
+
+
 def main():
     data = collect_training_data()
     plot_metric(data, "train_loss")
     plot_metric(data, "eval_loss")
-    plot_metric(data, "eval_acc")
+    plot_metric(data, "eval_accuracy")
     plot_metric(data, "eval_precision")
     plot_metric(data, "eval_recall")
     plot_metric(data, "eval_f1")
+    metrics_to_plot = ["train_loss", "eval_loss"]
+    plot_metrics_combined(data, metrics_to_plot, "metrics_combined.png")
 
 
 if __name__ == "__main__":
